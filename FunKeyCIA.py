@@ -72,25 +72,40 @@ parser.add_argument('-outputdir', action='store', dest='output_dir', help='The c
 parser.add_argument('-nodownload', action='store_false', default=True, dest='download', help='Turn OFF content downloading - will not generate CIA files.')
 parser.add_argument('-nobuild', action='store_false', default=True, dest='build', help='Turn OFF generation of CIA files, titles will be downloaded only.')
 parser.add_argument('-retry', type=int, default=4, dest='retry_count', choices=range(0, 10), help='How many times a file download will be attempted')
-parser.add_argument('-titleid', action='store', dest='titleid', help='Title ID of the content you want to download')
+parser.add_argument('-title', nargs='+', dest='specific_titles', help='Give TitleIDs to be specifically downloaded')
+
 parser.add_argument('-key', action='store', dest='key', help='Encrypted Title Key for the Title ID')
+
+parser.add_argument('-ticketsonly', action='store_true', default=False, dest='ticketsonly', help='Create only tickets, out put them all in one folder')
+parser.add_argument('-keyfile', action='store_true', default=False, dest='localkeyfile', help='encTitleKeys.bin file as input')
+parser.add_argument('-nfskeyfile', action='store_true', default=False, dest='nfskeyfile', help='Gets latest encTitleKeys.bin file from 3ds.nfshost.com, saves (overwrites) it and uses as input')
+parser.add_argument('-offline', action='store_true', default=False, dest='offline', help='Does not download the TMD and set the latest version in the ticket. Version is not needed but nice to do')
+
+parser.add_argument('-all', action='store_true', default=False, dest='all', help='Downloads/gets tickets for EVERYTHING from the keyfile')
+
 arguments = parser.parse_args()
 
 tk = 0x140
 badinput = False
 error = False
-
-if (arguments.titleid is None) or (arguments.key is None):
-    print 'You need to enter a Title ID and Encrytped Title Key'
-    sys.exit(0)
+titlelist = []
 
 
-if arguments.titleid is not None:
-        if (len(arguments.titleid) is 16) and all(c in string.hexdigits for c in arguments.titleid):
-            pass
+#if no keyfile is set to be used, check that a title id and key have been provided
+if (arguments.localkeyfile is None) and (arguments.nfskeyfile is None):
+    if (arguments.titleid is None) or (arguments.key is None):
+        print 'You need to enter a Title ID and Encrypted Title Key'
+        sys.exit(0)
+
+
+
+if arguments.specific_titles is not None:
+    for specific_title in arguments.specific_titles:
+        if (len(specific_title) is 16) and all(c in string.hexdigits for c in specific_title):
+            titlelist.append(specific_title.lower())
         else:
             print 'The Title ID(s) must be 16 hexadecimal characters long'
-            print arguments.titleid + ' - is not ok.'
+            print specific_title + ' - is not ok.'
             print ''
             badinput = True
 
@@ -107,31 +122,32 @@ if badinput: #if any input was not ok, quit
 
 
 
-print '*******\nFunKeyCIA by cearp\n*******\n'
+
+def processContent(titleid, key):
+
+    if(arguments.ticketsonly):
+        if not os.path.exists('tickets'):
+            os.makedirs(os.path.join('tickets'))
+    else:
+        if(arguments.output_dir is not None):
+            rawdir = os.path.join(arguments.output_dir, 'raw', titleid)
+            ciadir = os.path.join(arguments.output_dir, 'cia', titleid)
+        else:
+            rawdir = os.path.join('raw', titleid)
+            ciadir = os.path.join('cia', titleid)
+
+        if not os.path.exists(rawdir):
+            os.makedirs(os.path.join(rawdir))
 
 
-tikdata = bytearray(tiktem)
-tikdata[tk+0x9C:tk+0xA4] = binascii.a2b_hex(arguments.titleid)
-tikdata[tk+0x7F:tk+0x8F] = binascii.a2b_hex(arguments.key)
 
-if(arguments.output_dir is not None):
-    rawdir = os.path.join(arguments.output_dir, 'raw', arguments.titleid)
-    ciadir = os.path.join(arguments.output_dir, 'cia', arguments.titleid)
-else:
-    rawdir = os.path.join('raw', arguments.titleid)
-    ciadir = os.path.join('cia', arguments.titleid)
+    tikdata = bytearray(tiktem)
 
-if not os.path.exists(rawdir):
-    os.makedirs(os.path.join(rawdir))
+    #download stuff
+    if not arguments.ticketsonly:
+        print 'Downloading TMD...'
 
-
-
-#download stuff
-if(arguments.download):
-    print 'Downloading TMD...'
-
-    baseurl = 'http://ccs.cdn.c.shop.nintendowifi.net/ccs/download/' + arguments.titleid
-
+    baseurl = 'http://ccs.cdn.c.shop.nintendowifi.net/ccs/download/' + titleid
     for attempt in range(arguments.retry_count+1):
         try:
             if(attempt > 0):
@@ -142,68 +158,125 @@ if(arguments.download):
             error = True
             continue
         error = False
-        print 'Downloaded TMD OK!'
+        if not arguments.ticketsonly:
+            print 'Downloaded TMD OK!'
         break
-    
+
     if error:
         print 'ERROR: Could not download TMD. Skipping title...\n'
 
     if not error:
 
-        print ''
-
         tmd = tmd.read()
         tikdata[tk+0xA6:tk+0xA8] = tmd[tk+0x9C:tk+0x9E]
-        open(os.path.join(rawdir, 'cetk'),'wb').write(tikdata+magic)
-        open(os.path.join(rawdir) + '/tmd','wb').write(tmd)
+        tikdata[tk+0x9C:tk+0xA4] = binascii.a2b_hex(titleid)
+        tikdata[tk+0x7F:tk+0x8F] = binascii.a2b_hex(key)
+        if(arguments.ticketsonly):
+            open(os.path.join('tickets', titleid + '.tik'),'wb').write(tikdata+magic)
+            print 'Ticket created!'
+        else:
+            open(os.path.join(rawdir, 'cetk'),'wb').write(tikdata+magic)
+            open(os.path.join(rawdir) + '/tmd','wb').write(tmd)
 
-        #download stuff
-        print 'Downloading Contents...'
+            #download stuff
+            print 'Downloading Contents...'
 
-        contentCount = int(binascii.hexlify(tmd[tk+0x9E:tk+0xA0]),16)
+            contentCount = int(binascii.hexlify(tmd[tk+0x9E:tk+0xA0]),16)
 
-        for i in xrange(contentCount):
-            if not error:
-                cOffs = 0xB04+(0x30*i)
-                cID = binascii.hexlify(tmd[cOffs:cOffs+0x04])
-                print 'Downloading ' + str(i+1) + ' of ' + str(contentCount) + '. This file is ' + bytes2human(int(binascii.hexlify(tmd[cOffs+0x08:cOffs+0x10]),16))
-                outfname = os.path.join(rawdir, cID)
-                
-                for attempt in range(arguments.retry_count+1):
-                    try:
-                        if(attempt > 0):
-                            print 'Attempt ' + str(attempt+1) + ' of ' + str(arguments.retry_count+1)
-                        response = urllib2.urlopen(baseurl + '/' + cID)
-                        chunk_read(response, outfname, report_hook=chunk_report)
-                        if (int(os.path.getsize(outfname)) != int(binascii.hexlify(tmd[cOffs+0x08:cOffs+0x10]),16) ):
-                            print 'Content download not correct size\n'
+            for i in xrange(contentCount):
+                print i
+                if not error:
+                    cOffs = 0xB04+(0x30*i)
+                    cID = binascii.hexlify(tmd[cOffs:cOffs+0x04])
+                    print 'Downloading ' + str(i+1) + ' of ' + str(contentCount) + '. This file is ' + bytes2human(int(binascii.hexlify(tmd[cOffs+0x08:cOffs+0x10]),16))
+                    outfname = os.path.join(rawdir, cID)
+                    
+                    for attempt in range(arguments.retry_count+1):
+                        try:
+                            if(attempt > 0):
+                                print 'Attempt ' + str(attempt+1) + ' of ' + str(arguments.retry_count+1)
+                            response = urllib2.urlopen(baseurl + '/' + cID)
+                            chunk_read(response, outfname, report_hook=chunk_report)
+                            if (int(os.path.getsize(outfname)) != int(binascii.hexlify(tmd[cOffs+0x08:cOffs+0x10]),16) ):
+                                print 'Content download not correct size\n'
+                                continue
+                        except urllib2.URLError, e:
+                            print 'Could not download content file...\n'
+                            error = True
                             continue
-                    except urllib2.URLError, e:
-                        print 'Could not download content file...\n'
-                        error = True
-                        continue
-                    error = False
-                    break
-                
-                if error:
-                    print 'ERROR: Could not download content file... Skipping title'             
-                print ''
-        
+                        error = False
+                        break
+                    
+                    if error:
+                        print 'ERROR: Could not download content file... Skipping title'             
+                    print ''
+            
 
-        if not error:
-            print 'Title download complete\n'
+            if not error:
+                print 'Title download complete\n'
 
-            #cia generation
-            if(arguments.build):
-                if not os.path.exists(ciadir):
-                    os.makedirs(ciadir)
-                makecommand = ' ' + os.path.join(rawdir) + ' ' + os.path.join(ciadir, arguments.titleid) + '.cia'
-                os.system(execname + makecommand)
-                if(os.path.isfile(os.path.join(ciadir, arguments.titleid) + '.cia')):
-                    print 'CIA created ok!'
-                else:
-                    print 'CIA not created...'
-                print ''
-                print ''
+                #cia generation
+                if(arguments.build):
+                    if not os.path.exists(ciadir):
+                        os.makedirs(ciadir)
+                    makecommand = ' ' + os.path.join(rawdir) + ' ' + os.path.join(ciadir, titleid) + '.cia'
+                    os.system(execname + makecommand)
+                    if(os.path.isfile(os.path.join(ciadir, titleid) + '.cia')):
+                        print 'CIA created ok!'
+                    else:
+                        print 'CIA not created...'
+                    print ''
+                    print ''
 
 
+
+print '*******\nFunKeyCIA by cearp\n*******\n'
+
+
+
+
+
+if (arguments.nfskeyfile):
+    print 'Downloading encTitleKeys.bin from 3ds.nfshost.com...'
+    url = 'http://3ds.nfshost.com/downloadenc'
+    for attempt in range(arguments.retry_count+1):
+        try:
+            if(attempt > 0):
+                print '*Attempt ' + str(attempt+1) + ' of ' + str(arguments.retry_count+1)
+            thekeyfile = urllib2.urlopen(url)
+        except urllib2.URLError, e:
+            print 'Could not download file...'
+            error = True
+            continue
+        error = False
+        break
+
+    if error:
+        print 'ERROR: Could not download file. Skipping title...\n'
+
+    if not error:
+        print ''
+        thekeyfile = thekeyfile.read()
+        open(os.path.join('encTitleKeys.bin'),'wb').write(thekeyfile)
+        print 'Downloaded encTitleKeys.bin OK!'
+
+
+
+#if using a keyfile
+if (arguments.localkeyfile) or (arguments.nfskeyfile):
+    if not os.path.isfile('encTitleKeys.bin'):
+        print 'The input file encTitleKeys.bin does not exist.'
+        sys.exit(0)
+    with open('encTitleKeys.bin', 'rb') as keybin:
+        keybin.seek(0x10)
+        for block in iter(lambda: keybin.read(0x20), ""):
+            titleid = binascii.hexlify(block[0x8:0x10])
+            key = binascii.hexlify(block[0x10:0x20])
+            #skip system
+            typecheck = titleid[4:8]
+            if (int(typecheck,16) & 0x10):
+                continue
+            if arguments.all or (titleid in titlelist):
+                processContent(titleid, key)
+else:
+    processContent(titlelist[0], arguments.key)
