@@ -274,7 +274,7 @@ if (arguments.localkeyfile) or (arguments.nfskeyfile):
             key = binascii.hexlify(block[0x10:0x20])
             typecheck = titleid[4:8]
             
-            if arguments.all
+            if arguments.all:
                 #skip updates
                 if (typecheck == '000e'):
                     continue
