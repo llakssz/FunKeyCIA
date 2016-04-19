@@ -272,9 +272,16 @@ if (arguments.localkeyfile) or (arguments.nfskeyfile):
         for block in iter(lambda: keybin.read(0x20), ""):
             titleid = binascii.hexlify(block[0x8:0x10])
             key = binascii.hexlify(block[0x10:0x20])
-            #skip system
             typecheck = titleid[4:8]
+            #skip updates
+            if (typecheck == '000e'):
+                continue
+            #skip system
             if (int(typecheck,16) & 0x10):
+                continue
+            elif (typecheck == '8005'):
+                continue
+            elif (typecheck == '800f'):
                 continue
             if arguments.all or (titleid in titlelist):
                 processContent(titleid, key)
