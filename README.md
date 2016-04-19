@@ -32,6 +32,7 @@ When using keyfiles, you can download multiple things, this will get the latest 
 We can generate tickets only, and not download and create a CIA. Tickets will be put in the 'tickets' folder.
 
 **FunKeyCIA.py -ticketsonly -title XXXXXXXXXXXXXXXX -key ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ**
+
 **FunKeyCIA.py -ticketsonly -nfskeyfile XXXXXXXXXXXXXXXX**
 
 
