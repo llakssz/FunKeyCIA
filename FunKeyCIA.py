@@ -120,6 +120,14 @@ if arguments.key is not None:
 if badinput: #if any input was not ok, quit
     sys.exit(0)
 
+def makeTicket(titleid, key, titleversion, fulloutputpath):
+    
+    tikdata = bytearray(tiktem)
+    tikdata[tk+0xA6:tk+0xA8] = titleversion
+    tikdata[tk+0x9C:tk+0xA4] = binascii.a2b_hex(titleid)
+    tikdata[tk+0x7F:tk+0x8F] = binascii.a2b_hex(key)
+
+    open(fulloutputpath,'wb').write(tikdata+magic)
 
 
 
@@ -141,7 +149,6 @@ def processContent(titleid, key):
 
 
 
-    tikdata = bytearray(tiktem)
 
     #download stuff
     if not arguments.ticketsonly:
@@ -168,14 +175,16 @@ def processContent(titleid, key):
     if not error:
 
         tmd = tmd.read()
-        tikdata[tk+0xA6:tk+0xA8] = tmd[tk+0x9C:tk+0x9E]
-        tikdata[tk+0x9C:tk+0xA4] = binascii.a2b_hex(titleid)
-        tikdata[tk+0x7F:tk+0x8F] = binascii.a2b_hex(key)
+        titleversion = tmd[tk+0x9C:tk+0x9E]
+        
+
+
+        
         if(arguments.ticketsonly):
-            open(os.path.join('tickets', titleid + '.tik'),'wb').write(tikdata+magic)
+            makeTicket(titleid, key, titleversion, os.path.join('tickets', titleid + '.tik')):
             print 'Ticket created!'
         else:
-            open(os.path.join(rawdir, 'cetk'),'wb').write(tikdata+magic)
+            makeTicket(titleid, key, titleversion, os.path.join(rawdir, 'cetk')):
             open(os.path.join(rawdir) + '/tmd','wb').write(tmd)
 
             #download stuff
