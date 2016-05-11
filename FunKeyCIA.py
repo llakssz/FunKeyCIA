@@ -90,7 +90,7 @@ parser.add_argument('-key', action='store', dest='key', help='Encrypted Title Ke
 
 parser.add_argument('-ticketsonly', action='store_true', default=False, dest='ticketsonly', help='Create only tickets, out put them all in one folder')
 parser.add_argument('-keyfile', action='store_true', default=False, dest='localkeyfile', help='encTitleKeys.bin file as input')
-parser.add_argument('-nfskeyfile', action='store_true', default=False, dest='nfskeyfile', help='Gets latest encTitleKeys.bin file from 3ds.nfshost.com, saves (overwrites) it and uses as input')
+parser.add_argument('-nfskeyfile', action='store_true', default=False, dest='nfskeyfile', help='Gets latest encTitleKeys.bin file from 3ds.titlekeys.com, saves (overwrites) it and uses as input')
 parser.add_argument('-offline', action='store_true', default=False, dest='offline', help='Does not download the TMD and set the latest version in the ticket. Version is not needed but nice to do')
 
 parser.add_argument('-all', action='store_true', default=False, dest='all', help='Downloads/gets tickets for EVERYTHING from the keyfile')
@@ -249,8 +249,8 @@ print '*******\nFunKeyCIA by cearp\n*******\n'
 
 
 if (arguments.nfskeyfile):
-    print 'Downloading encTitleKeys.bin from 3ds.nfshost.com...'
-    url = 'http://3ds.nfshost.com/downloadenc'
+    print 'Downloading encTitleKeys.bin from 3ds.titlekeys.com...'
+    url = 'https://3ds.titlekeys.com/downloadenc'
     for attempt in range(arguments.retry_count+1):
         try:
             if(attempt > 0):
