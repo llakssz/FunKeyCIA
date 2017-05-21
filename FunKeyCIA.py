@@ -249,8 +249,8 @@ print '*******\nFunKeyCIA by cearp\n*******\n'
 
 
 if (arguments.nfskeyfile):
-    print 'Downloading encTitleKeys.bin from 3ds.titlekeys.com...'
-    url = 'https://3ds.titlekeys.com/downloadenc'
+    print 'Downloading encTitleKeys.bin from 3ds.titlekeys.gq...'
+    url = 'http://3ds.titlekeys.gq/downloadenc'
     for attempt in range(arguments.retry_count+1):
         try:
             if(attempt > 0):
